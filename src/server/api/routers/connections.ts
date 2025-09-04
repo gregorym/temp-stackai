@@ -13,7 +13,7 @@ export const connectionsRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const { limit, provider } = input;
       const response = await fetch(
-        `${env.BACKEND_URL}//connections?connection_provider=${provider}&limit=${limit}`,
+        `${env.BACKEND_URL}/connections?connection_provider=${provider}&limit=${limit}`,
         {
           method: "GET",
           headers: {
@@ -24,9 +24,36 @@ export const connectionsRouter = createTRPCRouter({
       );
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch connections: ${response.statusText}`);
+        throw new Error(`Failed to fetch connections: ${response.text}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      return data;
+    }),
+
+  get: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const response = await fetch(
+        `${env.BACKEND_URL}/connections/${input.id}/resources/children`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${ctx.sessionToken}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch connection: ${response.text}`);
+      }
+
+      const data = await response.json();
+      return data;
     }),
 });
