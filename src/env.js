@@ -8,6 +8,8 @@ export const env = createEnv({
    */
   server: {
     NODE_ENV: z.enum(["development", "test", "production"]),
+    SUPABASE_AUTH_URL: z.string().default("https://sb.stack-ai.com"),
+    SUPABASE_ANON_KEY: z.string().default(""),
   },
 
   /**
@@ -25,6 +27,8 @@ export const env = createEnv({
    */
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
+    SUPABASE_AUTH_URL: process.env.SUPABASE_AUTH_URL,
+    SUPABASE_ANON_KEY: process.env.SUPABASE_ANON_KEY,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
   /**
