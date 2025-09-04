@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
@@ -12,23 +13,51 @@ import {
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { cn } from "~/lib/utils";
-import { api } from "~/trpc/react";
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const router = useRouter();
   const [email, setEmail] = useState("stackaitest@gmail.com");
   const [password, setPassword] = useState("");
-
-  const loginMutation = api.auth.login.useMutation();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await loginMutation.mutateAsync({
-      email,
-      password,
-    });
+    setIsLoading(true);
+    setError(null);
+    setSuccess(false);
+    
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+        credentials: "include", // Important: ensures cookies are sent/received
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setSuccess(true);
+        router.push("/dashboard");
+      } else {
+        setError(result.error || "Login failed");
+      }
+    } catch (error) {
+      setError("Network error occurred");
+      console.error("Login request failed:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -50,7 +79,7 @@ export function LoginForm({
                     placeholder="m@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    disabled={loginMutation.isPending}
+                    disabled={isLoading}
                     required
                   />
                 </div>
@@ -63,7 +92,7 @@ export function LoginForm({
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    disabled={loginMutation.isPending}
+                    disabled={isLoading}
                     required
                   />
                 </div>
@@ -71,9 +100,9 @@ export function LoginForm({
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={loginMutation.isPending}
+                  disabled={isLoading}
                 >
-                  {loginMutation.isPending ? "Logging in..." : "Login"}
+                  {isLoading ? "Logging in..." : "Login"}
                 </Button>
               </div>
             </div>
@@ -82,23 +111,16 @@ export function LoginForm({
       </Card>
 
       {/* Error message */}
-      {loginMutation.isError && (
+      {error && (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-          {loginMutation.error?.message || "An error occurred during login"}
-        </div>
-      )}
-
-      {/* Error from API response */}
-      {loginMutation.data && !loginMutation.data.success && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-          {loginMutation.data.error}
+          {error}
         </div>
       )}
 
       {/* Success message */}
-      {loginMutation.data?.success && (
-        <div className="rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-600">
-          Login successful! Token saved.
+      {success && (
+        <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-600">
+          <p className="font-medium">Login successful! Redirecting...</p>
         </div>
       )}
     </div>
