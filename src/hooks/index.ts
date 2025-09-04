@@ -1,0 +1,1 @@
+export { useAllResources } from "./use-all-resources";
