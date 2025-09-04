@@ -6,9 +6,10 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
+import { cookies } from "next/headers";
 
 /**
  * 1. CONTEXT
@@ -23,8 +24,13 @@ import { ZodError } from "zod";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
+  // Extract session token from cookies
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("stack_ai_token")?.value ?? null;
+
   return {
     ...opts,
+    sessionToken,
   };
 };
 
@@ -101,3 +107,34 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * are logged in.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
+
+/**
+ * Protected (authenticated) procedure
+ *
+ * If you want a query or mutation to ONLY be accessible to logged in users, use this. It verifies
+ * the session is valid and guarantees `ctx.sessionToken` is not null.
+ *
+ * @see https://trpc.io/docs/procedures
+ */
+export const protectedProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(({ ctx, next }) => {
+    if (!ctx.sessionToken) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+
+    // TODO: Validate the session token with Supabase to ensure it's still valid
+    // For now, we just check if the token exists in the cookie
+    // In a real implementation, you would verify the JWT token with Supabase:
+    // - Decode the JWT
+    // - Verify signature
+    // - Check expiration
+    // - Optionally fetch user data from Supabase
+
+    return next({
+      ctx: {
+        ...ctx,
+        sessionToken: ctx.sessionToken,
+      },
+    });
+  });

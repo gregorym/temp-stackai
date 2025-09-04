@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { cookies } from "next/headers";
 
-import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
+import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { env } from "~/env";
 
 export const authRouter = createTRPCRouter({
