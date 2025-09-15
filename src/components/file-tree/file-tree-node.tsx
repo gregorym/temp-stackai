@@ -14,9 +14,9 @@ import {
 import { useState } from "react";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Skeleton } from "~/components/ui/skeleton";
+import { useAllResources } from "~/hooks";
 import { cn } from "~/lib/utils";
 import type { Resource } from "~/server/api/routers/connections";
-import { api } from "~/trpc/react";
 
 interface FileTreeNodeProps {
   resource: Resource;
@@ -26,6 +26,8 @@ interface FileTreeNodeProps {
   isExpanded: boolean;
   onToggleSelect: (resource: Resource) => void;
   onToggleExpand: (resourceId: string) => void;
+  selectedResources: Set<string>;
+  filter?: string;
 }
 
 export function FileTreeNode({
@@ -36,30 +38,23 @@ export function FileTreeNode({
   isExpanded,
   onToggleSelect,
   onToggleExpand,
+  selectedResources,
+  filter,
 }: FileTreeNodeProps) {
   const [childrenExpanded, setChildrenExpanded] = useState<Set<string>>(
-    new Set(),
-  );
-  const [childrenSelected, setChildrenSelected] = useState<Set<string>>(
     new Set(),
   );
 
   // Fetch directory contents when expanded
   const {
-    data: childrenResponse,
+    data: children,
     isLoading: isLoadingChildren,
     error: childrenError,
-  } = api.connections.get.useQuery(
-    {
-      id: connectionId,
-      resourceId: resource.resource_id,
-    },
-    {
-      enabled: resource.inode_type === "directory" && isExpanded,
-    },
-  );
-
-  const children = childrenResponse?.data;
+  } = useAllResources({
+    connectionId,
+    resourceId: resource.resource_id,
+    enabled: resource.inode_type === "directory" && isExpanded,
+  });
 
   const getFileIcon = (resource: Resource) => {
     if (resource.inode_type === "directory") {
@@ -73,10 +68,10 @@ export function FileTreeNode({
     // File type icons based on MIME type
     const mimeType = resource.content_mime?.toLowerCase();
     if (mimeType?.includes("image/")) {
-      return <Image className="h-4 w-4 text-green-600" />;
+      return <Image className="h-4 w-4 text-gray-600" />;
     }
     if (mimeType?.includes("spreadsheet") || mimeType?.includes("csv")) {
-      return <FileSpreadsheet className="h-4 w-4 text-green-600" />;
+      return <FileSpreadsheet className="h-4 w-4 text-gray-600" />;
     }
     if (mimeType?.includes("text/") || mimeType?.includes("pdf")) {
       return <FileText className="h-4 w-4 text-gray-600" />;
@@ -105,15 +100,6 @@ export function FileTreeNode({
     }
   };
 
-  const handleChildToggleSelect = (childResource: Resource) => {
-    const newSelected = new Set(childrenSelected);
-    if (newSelected.has(childResource.resource_id)) {
-      newSelected.delete(childResource.resource_id);
-    } else {
-      newSelected.add(childResource.resource_id);
-    }
-    setChildrenSelected(newSelected);
-  };
 
   const handleChildToggleExpand = (childResourceId: string) => {
     const newExpanded = new Set(childrenExpanded);
@@ -201,11 +187,11 @@ export function FileTreeNode({
 
           {childrenError && (
             <div className="px-4 py-2 text-sm text-red-600">
-              Failed to load contents
+              {childrenError}
             </div>
           )}
 
-          {children && children.length === 0 && (
+          {children && children.length === 0 && !isLoadingChildren && (
             <div className="px-4 py-2 text-sm text-gray-500">Empty folder</div>
           )}
 
@@ -214,12 +200,14 @@ export function FileTreeNode({
               {children.map((child) => (
                 <FileTreeNode
                   key={child.resource_id}
+                  filter={filter}
                   resource={child}
                   level={level + 1}
                   connectionId={connectionId}
-                  isSelected={childrenSelected.has(child.resource_id)}
+                  isSelected={selectedResources.has(child.resource_id)}
                   isExpanded={childrenExpanded.has(child.resource_id)}
-                  onToggleSelect={handleChildToggleSelect}
+                  onToggleSelect={onToggleSelect}
+                  selectedResources={selectedResources}
                   onToggleExpand={handleChildToggleExpand}
                 />
               ))}

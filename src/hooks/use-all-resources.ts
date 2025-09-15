@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { api } from "~/trpc/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Resource } from "~/server/api/routers/connections";
+import { api } from "~/trpc/react";
 
 interface UseAllResourcesOptions {
   connectionId: string;
+  resourceId?: string;
   enabled?: boolean;
+  filter?: string;
 }
 
 interface UseAllResourcesResult {
@@ -18,9 +20,11 @@ interface UseAllResourcesResult {
   refetch: () => Promise<void>;
 }
 
-export function useAllResources({ 
-  connectionId, 
-  enabled = true 
+export function useAllResources({
+  connectionId,
+  resourceId,
+  enabled = true,
+  filter,
 }: UseAllResourcesOptions): UseAllResourcesResult {
   const [data, setData] = useState<Resource[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,52 +35,70 @@ export function useAllResources({
 
   const utils = api.useUtils();
 
-  // Function to fetch a single page and update state incrementally
-  const fetchNextPage = useCallback(async (cursor?: string, isFirstPage = false) => {
-    try {
-      if (isFirstPage) {
-        setIsLoading(true);
-        setData([]); // Reset data for first page
+  const filteredData = useMemo(() => {
+    if (!filter) return data;
+
+    return data.filter((resource) => {
+      if (resource.inode_type === "directory") {
+        return true;
       } else {
-        setIsLoadingMore(true);
+        return resource.inode_path.path
+          .toLowerCase()
+          .includes(filter.toLowerCase());
       }
-      
-      setError(null);
-      
-      const response = await utils.connections.get.fetch({
-        id: connectionId,
-        cursor,
-      });
-      
-      // Update data incrementally
-      setData(prevData => {
+    });
+  }, [data, filter]);
+
+  // Function to fetch a single page and update state incrementally
+  const fetchNextPage = useCallback(
+    async (cursor?: string, isFirstPage = false) => {
+      try {
         if (isFirstPage) {
-          return response.data;
+          setIsLoading(true);
+          setData([]); // Reset data for first page
+        } else {
+          setIsLoadingMore(true);
         }
-        return [...prevData, ...response.data];
-      });
-      
-      // Update pagination state
-      setNextCursor(response.next_cursor ?? undefined);
-      setHasMore(!!response.next_cursor);
-      
-      // If there's more data, automatically fetch the next page
-      if (response.next_cursor) {
-        // Small delay to show incremental loading
-        await new Promise(resolve => setTimeout(resolve, 100));
-        await fetchNextPage(response.next_cursor, false);
+
+        setError(null);
+
+        const response = await utils.connections.get.fetch({
+          id: connectionId,
+          resourceId,
+          cursor,
+        });
+
+        // Update data incrementally
+        setData((prevData) => {
+          if (isFirstPage) {
+            return response.data;
+          }
+          return [...prevData, ...response.data];
+        });
+
+        // Update pagination state
+        setNextCursor(response.next_cursor ?? undefined);
+        setHasMore(!!response.next_cursor);
+
+        // If there's more data, automatically fetch the next page
+        if (response.next_cursor) {
+          // Small delay to show incremental loading
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          await fetchNextPage(response.next_cursor, false);
+        }
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "Failed to load resources";
+        setError(errorMessage);
+        setHasMore(false);
+        console.error("Failed to load resources:", err);
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
       }
-      
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load resources';
-      setError(errorMessage);
-      setHasMore(false);
-      console.error('Failed to load resources:', err);
-    } finally {
-      setIsLoading(false);
-      setIsLoadingMore(false);
-    }
-  }, [connectionId, utils.connections.get]);
+    },
+    [connectionId, resourceId, utils.connections.get],
+  );
 
   // Main fetch function
   const fetchAllData = useCallback(async () => {
@@ -101,7 +123,7 @@ export function useAllResources({
   }, [fetchAllData]);
 
   return {
-    data,
+    data: filteredData,
     isLoading,
     isLoadingMore,
     error,

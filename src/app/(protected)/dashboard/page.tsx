@@ -2,10 +2,10 @@
 
 import { Loader2, PlusSquare } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Button } from "~/components/ui/button";
-import { api } from "~/trpc/react";
 import { FileTreeDialog } from "~/components/file-tree";
+import { Button } from "~/components/ui/button";
 import type { Resource } from "~/server/api/routers/connections";
+import { api } from "~/trpc/react";
 
 export default function DashboardPage() {
   const [provider] = useState<"gdrive">("gdrive");
@@ -17,6 +17,8 @@ export default function DashboardPage() {
     isLoading,
     error,
   } = api.connections.all.useQuery({ provider });
+
+  const { data: knowledgeBases } = api.knowledgeBases.all.useQuery();
 
   useEffect(() => {
     if (connections?.[0]?.connection_id) {
@@ -35,6 +37,8 @@ export default function DashboardPage() {
     }
   };
 
+  console.log(knowledgeBases);
+
   return (
     <>
       <div className="container mx-auto px-4 py-8">
@@ -42,7 +46,7 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
 
-            <Button 
+            <Button
               disabled={isLoading || !connections?.[0]?.connection_id}
               onClick={handleOpenDialog}
             >
@@ -59,7 +63,6 @@ export default function DashboardPage() {
           connectionId={connections[0].connection_id}
           isOpen={isDialogOpen}
           onClose={() => setIsDialogOpen(false)}
-          onImport={handleImport}
         />
       )}
     </>
