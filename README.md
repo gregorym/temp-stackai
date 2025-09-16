@@ -1,29 +1,37 @@
-# Create T3 App
+## Setup
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+1. **Clone the repository**
 
-## What's next? How do I make an app with this?
+   ```bash
+   git clone <repository-url>
+   cd stackai
+   ```
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+2. **Install dependencies**
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+   ```bash
+   pnpm install
+   ```
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+3. **Set up environment variables**
 
-## Learn More
+   ```bash
+   cp .env.example .env
+   ```
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+   Edit `.env` with your configuration values. The project uses `@t3-oss/env-nextjs` for type-safe environment variable validation.
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+4. **Start the development server**
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+   ```bash
+   pnpm dev
+   ```
 
-## How do I deploy this?
+   The application will be available at [http://localhost:3000](http://localhost:3000)
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+## Key Decisions
+
+- use TRPC to get typed api query and response
+- create routers for connections and knowledge bases
+- Used jotai for global state management only when needed
+- Use hooks to handle paginated data

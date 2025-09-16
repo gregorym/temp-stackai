@@ -1,6 +1,6 @@
 "use client";
 
-import { useAtom } from "jotai";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
 import {
@@ -12,8 +12,6 @@ import {
 import { ScrollArea } from "~/components/ui/scroll-area";
 import { useAllResources } from "~/hooks";
 import { api } from "~/trpc/react";
-import type { Resource } from "~/server/api/routers/connections";
-import { selectedResourcesAtom } from "~/store/selected-resources";
 import Dropbox from "../icons/providers/dropbox";
 import GoogleDrive from "../icons/providers/google-drive";
 import Slack from "../icons/providers/slack";
@@ -22,6 +20,7 @@ import { Skeleton } from "../ui/skeleton";
 import { FileTreeNode } from "./file-tree-node";
 
 interface FileTreeDialogProps {
+  orgId: string;
   connectionId: string;
   isOpen: boolean;
   onClose: () => void;
@@ -34,66 +33,63 @@ interface Provider {
   isConnected: boolean;
 }
 
+const providers: Provider[] = [
+  {
+    id: "google-drive",
+    name: "Google Drive",
+    icon: <GoogleDrive />,
+    isConnected: true,
+  },
+  {
+    id: "dropbox",
+    name: "Dropbox",
+    icon: <Dropbox />,
+    isConnected: false,
+  },
+  {
+    id: "slack",
+    name: "Slack",
+    icon: <Slack />,
+    isConnected: false,
+  },
+];
+
 export function FileTreeDialog({
+  orgId,
   connectionId,
   isOpen,
   onClose,
 }: FileTreeDialogProps) {
-  const [selectedResources, setSelectedResources] = useAtom(
-    selectedResourcesAtom,
+  const router = useRouter();
+  const [filter, setFilter] = useState<string>("");
+  const [selectedProvider, setSelectedProvider] = useState<Provider>(
+    providers[0]!,
+  );
+  const [selectedResources, setSelectedResources] = useState<Set<string>>(
+    new Set(),
   );
   const [expandedDirectories, setExpandedDirectories] = useState<Set<string>>(
     new Set(),
   );
-  const [filter, setFilter] = useState<string>("");
-  const [selectedProvider, setSelectedProvider] =
-    useState<string>("google-drive");
 
-  const providers: Provider[] = [
-    {
-      id: "google-drive",
-      name: "Google Drive",
-      icon: <GoogleDrive />,
-      isConnected: true,
-    },
-    {
-      id: "dropbox",
-      name: "Dropbox",
-      icon: <Dropbox />,
-      isConnected: false,
-    },
-    {
-      id: "slack",
-      name: "Slack",
-      icon: <Slack />,
-      isConnected: false,
-    },
-  ];
-
-  // Use the custom hook for incremental pagination
-  const {
-    data: allResources,
-    isLoading,
-    isLoadingMore,
-    error: loadError,
-    hasMore,
-  } = useAllResources({
-    filter,
+  const createKnowledgeBase = api.knowledgeBases.create.useMutation();
+  const { data: allResources, isLoading } = useAllResources({
     connectionId,
     enabled: isOpen,
   });
 
-  const handleToggleSelect = (resource: Resource) => {
+  const handleToggleSelect = (resourceId: string) => {
     const newSelected = new Set(selectedResources);
-    if (newSelected.has(resource.resource_id)) {
-      newSelected.delete(resource.resource_id);
+    if (newSelected.has(resourceId)) {
+      newSelected.delete(resourceId);
     } else {
-      newSelected.add(resource.resource_id);
+      newSelected.add(resourceId);
     }
     setSelectedResources(newSelected);
   };
 
   const handleToggleExpand = (resourceId: string) => {
+    console.log(resourceId);
     const newExpanded = new Set(expandedDirectories);
     if (newExpanded.has(resourceId)) {
       newExpanded.delete(resourceId);
@@ -103,36 +99,28 @@ export function FileTreeDialog({
     setExpandedDirectories(newExpanded);
   };
 
-  const createKnowledgeBase = api.knowledgeBases.create.useMutation({
-    onSuccess: () => {
-      setSelectedResources(new Set());
-      onClose();
-    },
-    onError: (error) => {
-      console.error("Failed to create knowledge base:", error);
-    },
-  });
-
-  const handleCreateKB = () => {
+  const handleCreateKB = async () => {
     if (!selectedResources.size) return;
 
-    createKnowledgeBase.mutate({
+    const kb = await createKnowledgeBase.mutateAsync({
+      org_id: orgId,
       connection_id: connectionId,
       connection_source_ids: Array.from(selectedResources),
     });
+
+    setSelectedResources(new Set());
+    onClose();
+
+    if (kb?.id) {
+      router.push(`/dashboard/${kb.id}`);
+    }
   };
 
   const selectedCount = selectedResources.size;
 
-  // Get the selected provider's logo and name
-  const getSelectedProvider = () => {
-    const provider = providers.find((p) => p.id === selectedProvider);
-    return provider || providers[0]; // fallback to first provider
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="h-full max-h-[90vh] w-full max-w-5xl sm:max-w-7xl">
+      <DialogContent className="w-full max-w-5xl sm:max-w-7xl">
         <DialogHeader className="mb-0">
           <DialogTitle>Integrations</DialogTitle>
         </DialogHeader>
@@ -144,10 +132,10 @@ export function FileTreeDialog({
               {providers.map((provider) => (
                 <button
                   key={provider.id}
-                  onClick={() => setSelectedProvider(provider.id)}
+                  onClick={() => setSelectedProvider(provider)}
                   disabled={!provider.isConnected}
                   className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                    selectedProvider === provider.id
+                    selectedProvider?.id === provider.id
                       ? "bg-blue-50 text-blue-900"
                       : provider.isConnected
                         ? "text-gray-700 hover:bg-gray-50"
@@ -165,8 +153,8 @@ export function FileTreeDialog({
           <div className="flex-1">
             <div className="mb-2 flex items-center">
               <h3 className="flex items-center gap-2 text-lg font-medium">
-                {getSelectedProvider() && getSelectedProvider()?.icon}
-                {getSelectedProvider() && getSelectedProvider()?.name}
+                {selectedProvider?.icon}
+                {selectedProvider?.name}
               </h3>
               <Input
                 placeholder="Filter files..."
@@ -194,15 +182,7 @@ export function FileTreeDialog({
                 </div>
               )}
 
-              {loadError && (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-sm text-red-600">
-                    Failed to load files: {loadError}
-                  </div>
-                </div>
-              )}
-
-              {!isLoading && !loadError && allResources.length === 0 && (
+              {!isLoading && allResources.length === 0 && (
                 <div className="flex items-center justify-center py-8">
                   <div className="text-muted-foreground text-sm">
                     No files found
@@ -214,16 +194,15 @@ export function FileTreeDialog({
                 <div className="space-y-1">
                   {allResources.map((resource) => (
                     <FileTreeNode
-                      key={resource.resource_id}
                       filter={filter}
+                      key={resource.resource_id}
                       resource={resource}
                       level={0}
                       connectionId={connectionId}
-                      isSelected={selectedResources.has(resource.resource_id)}
-                      isExpanded={expandedDirectories.has(resource.resource_id)}
                       onToggleSelect={handleToggleSelect}
                       onToggleExpand={handleToggleExpand}
                       selectedResources={selectedResources}
+                      expandedDirectories={expandedDirectories}
                     />
                   ))}
                 </div>
@@ -243,12 +222,13 @@ export function FileTreeDialog({
                 </Button>
                 <Button
                   onClick={handleCreateKB}
-                  disabled={selectedCount === 0 || createKnowledgeBase.isPending}
+                  disabled={
+                    selectedCount === 0 || createKnowledgeBase.isPending
+                  }
                 >
                   {createKnowledgeBase.isPending
                     ? "Creating..."
-                    : `Import ${selectedCount > 0 ? `(${selectedCount})` : ""}`
-                  }
+                    : `Import ${selectedCount > 0 ? `(${selectedCount})` : ""}`}
                 </Button>
               </div>
             </div>

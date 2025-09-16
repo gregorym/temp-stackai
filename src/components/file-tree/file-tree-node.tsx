@@ -1,32 +1,27 @@
 "use client";
 
-import {
-  ChevronDown,
-  ChevronRight,
-  File,
-  FileSpreadsheet,
-  FileText,
-  Folder,
-  FolderOpen,
-  Image,
-  Loader2,
-} from "lucide-react";
-import { useState } from "react";
+import { Loader2 } from "lucide-react";
+import { useMemo } from "react";
 import { Checkbox } from "~/components/ui/checkbox";
-import { Skeleton } from "~/components/ui/skeleton";
 import { useAllResources } from "~/hooks";
+import {
+  formatFileSize,
+  getExpandIcon,
+  getFileIcon,
+  getStatusIcon,
+} from "~/lib/file-tree-utils";
 import { cn } from "~/lib/utils";
 import type { Resource } from "~/server/api/routers/connections";
+import { FileTreeSkeleton } from "./file-tree-skeleton";
 
-interface FileTreeNodeProps {
+export interface FileTreeNodeProps {
   resource: Resource;
   level: number;
   connectionId: string;
-  isSelected: boolean;
-  isExpanded: boolean;
-  onToggleSelect: (resource: Resource) => void;
+  onToggleSelect: (resourceId: string) => void;
   onToggleExpand: (resourceId: string) => void;
   selectedResources: Set<string>;
+  expandedDirectories: Set<string>;
   filter?: string;
 }
 
@@ -34,121 +29,74 @@ export function FileTreeNode({
   resource,
   level,
   connectionId,
-  isSelected,
-  isExpanded,
   onToggleSelect,
   onToggleExpand,
   selectedResources,
+  expandedDirectories,
   filter,
 }: FileTreeNodeProps) {
-  const [childrenExpanded, setChildrenExpanded] = useState<Set<string>>(
-    new Set(),
-  );
+  const isExpanded = useMemo(() => {
+    return (
+      resource.inode_type === "directory" &&
+      expandedDirectories.has(resource.resource_id)
+    );
+  }, [expandedDirectories, resource]);
 
-  // Fetch directory contents when expanded
-  const {
-    data: children,
-    isLoading: isLoadingChildren,
-    error: childrenError,
-  } = useAllResources({
+  const isSelected = useMemo(() => {
+    return selectedResources.has(resource.resource_id);
+  }, [selectedResources, resource]);
+
+  const { data: children, isLoading: isLoadingChildren } = useAllResources({
     connectionId,
     resourceId: resource.resource_id,
     enabled: resource.inode_type === "directory" && isExpanded,
   });
 
-  const getFileIcon = (resource: Resource) => {
-    if (resource.inode_type === "directory") {
-      return isExpanded ? (
-        <FolderOpen className="h-4 w-4 text-blue-600" />
-      ) : (
-        <Folder className="h-4 w-4 text-blue-600" />
-      );
-    }
-
-    // File type icons based on MIME type
-    const mimeType = resource.content_mime?.toLowerCase();
-    if (mimeType?.includes("image/")) {
-      return <Image className="h-4 w-4 text-gray-600" />;
-    }
-    if (mimeType?.includes("spreadsheet") || mimeType?.includes("csv")) {
-      return <FileSpreadsheet className="h-4 w-4 text-gray-600" />;
-    }
-    if (mimeType?.includes("text/") || mimeType?.includes("pdf")) {
-      return <FileText className="h-4 w-4 text-gray-600" />;
-    }
-
-    return <File className="h-4 w-4 text-gray-600" />;
-  };
-
-  const getExpandIcon = () => {
+  const getResourceExpandIcon = () => {
     if (resource.inode_type !== "directory") return null;
 
     if (isLoadingChildren) {
       return <Loader2 className="h-4 w-4 animate-spin text-gray-400" />;
     }
 
-    return isExpanded ? (
-      <ChevronDown className="h-4 w-4 text-gray-600" />
-    ) : (
-      <ChevronRight className="h-4 w-4 text-gray-600" />
-    );
+    return getExpandIcon(isExpanded);
   };
 
-  const handleExpand = () => {
-    if (resource.inode_type === "directory") {
-      onToggleExpand(resource.resource_id);
-    }
-  };
-
-
-  const handleChildToggleExpand = (childResourceId: string) => {
-    const newExpanded = new Set(childrenExpanded);
-    if (newExpanded.has(childResourceId)) {
-      newExpanded.delete(childResourceId);
-    } else {
-      newExpanded.add(childResourceId);
-    }
-    setChildrenExpanded(newExpanded);
-  };
-
-  const formatFileSize = (bytes?: number) => {
-    if (!bytes) return "";
-
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    if (bytes < 1024 * 1024 * 1024)
-      return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-    return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  };
+  if (
+    filter &&
+    resource.inode_type !== "directory" &&
+    !resource.inode_path.path.toLowerCase().includes(filter)
+  ) {
+    return null;
+  }
 
   return (
     <div>
-      {/* Current node */}
       <div
         className={cn(
-          "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1 hover:bg-gray-50",
+          "flex items-center gap-2 rounded-sm px-2 py-1 hover:bg-gray-50",
           isSelected && "bg-blue-50",
         )}
         style={{ paddingLeft: `${level * 20 + 8}px` }}
       >
         {/* Expand/collapse button */}
         <button
-          onClick={handleExpand}
+          onClick={() => onToggleExpand(resource.resource_id)}
           className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-200"
           disabled={resource.inode_type !== "directory"}
         >
-          {getExpandIcon()}
+          {getResourceExpandIcon()}
         </button>
 
         {/* Checkbox */}
         <Checkbox
           checked={isSelected}
-          onCheckedChange={() => onToggleSelect(resource)}
+          onCheckedChange={() => onToggleSelect(resource.resource_id)}
           className="shrink-0"
         />
 
-        {/* File/folder icon */}
-        <div className="shrink-0">{getFileIcon(resource)}</div>
+        {/* @ts-ignore */}
+        <div className="shrink-0">{getFileIcon(resource, isExpanded)}</div>
 
         {/* Name and details */}
         <div className="min-w-0 flex-1">
@@ -161,6 +109,13 @@ export function FileTreeNode({
                 {formatFileSize(resource.size)}
               </span>
             )}
+            {resource.inode_type === "file" &&
+              resource.status &&
+              resource.status !== "resource" && (
+                <span className="ml-2 text-xs text-gray-500">
+                  {getStatusIcon(resource.status)}
+                </span>
+              )}
           </div>
         </div>
       </div>
@@ -168,28 +123,7 @@ export function FileTreeNode({
       {/* Children (for expanded directories) */}
       {resource.inode_type === "directory" && isExpanded && (
         <div className="ml-4">
-          {isLoadingChildren && (
-            <div className="space-y-1">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 px-2 py-1"
-                  style={{ paddingLeft: `${(level + 1) * 20 + 8}px` }}
-                >
-                  <Skeleton className="h-4 w-4" />
-                  <Skeleton className="h-4 w-4" />
-                  <Skeleton className="h-4 w-4" />
-                  <Skeleton className="h-4 w-32" />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {childrenError && (
-            <div className="px-4 py-2 text-sm text-red-600">
-              {childrenError}
-            </div>
-          )}
+          {isLoadingChildren && <FileTreeSkeleton level={level} />}
 
           {children && children.length === 0 && !isLoadingChildren && (
             <div className="px-4 py-2 text-sm text-gray-500">Empty folder</div>
@@ -204,11 +138,10 @@ export function FileTreeNode({
                   resource={child}
                   level={level + 1}
                   connectionId={connectionId}
-                  isSelected={selectedResources.has(child.resource_id)}
-                  isExpanded={childrenExpanded.has(child.resource_id)}
                   onToggleSelect={onToggleSelect}
+                  onToggleExpand={onToggleExpand}
                   selectedResources={selectedResources}
-                  onToggleExpand={handleChildToggleExpand}
+                  expandedDirectories={expandedDirectories}
                 />
               ))}
             </div>

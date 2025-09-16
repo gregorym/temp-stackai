@@ -5,9 +5,9 @@ import type { Resource } from "~/server/api/routers/connections";
 import { api } from "~/trpc/react";
 
 interface UseAllResourcesOptions {
-  connectionId: string;
-  resourceId?: string;
   enabled?: boolean;
+  kbId: string;
+  path: string;
 }
 
 interface UseAllResourcesResult {
@@ -19,9 +19,9 @@ interface UseAllResourcesResult {
   refetch: () => Promise<void>;
 }
 
-export function useAllResources({
-  connectionId,
-  resourceId,
+export function useAllKBResources({
+  kbId,
+  path,
   enabled = true,
 }: UseAllResourcesOptions): UseAllResourcesResult {
   const [data, setData] = useState<Resource[]>([]);
@@ -45,9 +45,9 @@ export function useAllResources({
 
         setError(null);
 
-        const response = await utils.connections.get.fetch({
-          id: connectionId,
-          resourceId,
+        const response = await utils.knowledgeBases.get.fetch({
+          id: kbId,
+          path,
           cursor,
         });
 
@@ -79,7 +79,7 @@ export function useAllResources({
         setIsLoadingMore(false);
       }
     },
-    [connectionId, resourceId, utils.connections.get],
+    [kbId, path, utils.knowledgeBases.get],
   );
 
   // Main fetch function

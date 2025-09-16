@@ -16,15 +16,19 @@ export const knowledgeBasesRouter = createTRPCRouter({
       throw new Error(`Failed to fetch knowledge bases: ${response.text}`);
     }
 
-    const data = await response.json();
-    console.log(data);
-    return data;
+    return await response.json();
   }),
   get: protectedProcedure
-    .input(z.object({ id: z.string(), cursor: z.string().optional() }))
+    .input(
+      z.object({
+        id: z.string(),
+        path: z.string().default("/"),
+        cursor: z.string().optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       const response = await fetch(
-        `${env.BACKEND_URL}/knowledge_bases/${input.id}/resources/children?next_cursor=${input.cursor}`,
+        `${env.BACKEND_URL}/knowledge_bases/${input.id}/resources/children?resource_path=${input.path}`,
         {
           headers: {
             Authorization: `Bearer ${ctx.sessionToken}`,
@@ -34,18 +38,15 @@ export const knowledgeBasesRouter = createTRPCRouter({
       );
 
       if (!response.ok) {
-        throw new Error(
-          `Failed to create knowledge base: ${response.statusText}`,
-        );
+        throw new Error(`Failed to get knowledge base: ${response.statusText}`);
       }
 
-      const data = await response.json();
-
-      return data;
+      return await response.json();
     }),
   create: protectedProcedure
     .input(
       z.object({
+        org_id: z.string(),
         connection_id: z.string(),
         connection_source_ids: z.array(z.string()),
       }),
@@ -65,7 +66,6 @@ export const knowledgeBasesRouter = createTRPCRouter({
             unstructured: true,
             embedding_params: {
               embedding_model: "text-embedding-ada-002",
-              api_key: null,
             },
             chunker_params: {
               chunk_size: 1500,
@@ -73,8 +73,6 @@ export const knowledgeBasesRouter = createTRPCRouter({
               chunker: "sentence",
             },
           },
-          org_level_role: null,
-          cron_job_id: null,
         }),
       });
 
@@ -85,6 +83,17 @@ export const knowledgeBasesRouter = createTRPCRouter({
       }
 
       const data = await response.json();
+
+      await fetch(
+        `${env.BACKEND_URL}/knowledge_bases/sync/trigger/${data.knowledge_base_id}/${input.org_id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${ctx.sessionToken}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
       return { ...data, id: data.knowledge_base_id };
     }),
   delete: protectedProcedure
