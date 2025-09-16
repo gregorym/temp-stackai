@@ -33,5 +33,6 @@
 
 - use TRPC to get typed api query and response
 - create routers for connections and knowledge bases
-- Used jotai for global state management only when needed
+- Avoid global state library
 - Use hooks to handle paginated data
+- Decouple components between Connection and KnowledgeBase. They are both handling Resources but the behavior, data fetch is too different to encapsulate into a single component.

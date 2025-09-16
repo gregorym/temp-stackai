@@ -79,6 +79,8 @@ export function KBFileTreeNode({
     refetchParent?.();
   };
 
+  if (deleteMutation.isSuccess) return null;
+
   return (
     <div>
       <div
