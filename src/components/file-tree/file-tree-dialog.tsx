@@ -95,7 +95,6 @@ export function FileTreeDialog({
   };
 
   const handleToggleExpand = (resourceId: string) => {
-    console.log(resourceId);
     const newExpanded = new Set(expandedDirectories);
     if (newExpanded.has(resourceId)) {
       newExpanded.delete(resourceId);
