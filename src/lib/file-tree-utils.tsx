@@ -9,6 +9,7 @@ import {
   FileWarning,
   Folder,
   FolderOpen,
+  Hourglass,
   Image,
 } from "lucide-react";
 
@@ -18,6 +19,8 @@ export const getStatusIcon = (status: string) => {
       return <DatabaseZap className="h-4 w-4 text-blue-600" />;
     case "parsed":
       return <DatabaseBackup className="h-4 w-4" />;
+    case "pending":
+      return <Hourglass className="h-4 w-4 text-green-600" />;
     case "error":
       return <FileWarning className="h-4 w-4 text-red-600" />;
     default:

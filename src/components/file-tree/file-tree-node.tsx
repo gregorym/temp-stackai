@@ -112,7 +112,10 @@ export function FileTreeNode({
             {resource.inode_type === "file" &&
               resource.status &&
               resource.status !== "resource" && (
-                <span className="ml-2 text-xs text-gray-500">
+                <span
+                  title={resource.status}
+                  className="ml-2 text-xs text-gray-500"
+                >
                   {getStatusIcon(resource.status)}
                 </span>
               )}

@@ -118,14 +118,19 @@ export function KBFileTreeNode({
               {resource.inode_type === "file" &&
                 resource.status &&
                 resource.status !== "resource" && (
-                  <span className="ml-2 text-xs text-gray-500">
+                  <span
+                    title={resource.status}
+                    className="ml-2 cursor-default text-xs text-gray-500"
+                  >
                     {getStatusIcon(resource.status)}
                   </span>
                 )}
               {resource.inode_type === "file" && (
                 <button
+                  title="Delete"
                   onClick={handleDelete}
                   disabled={deleteMutation.isPending}
+                  className="cursor-pointer"
                 >
                   {!deleteMutation.isPending && (
                     <Trash2Icon className="h-4 w-4" />
