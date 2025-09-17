@@ -78,6 +78,12 @@ export function FileTreeDialog({
     enabled: isOpen,
   });
 
+  const handleClose = () => {
+    setExpandedDirectories(new Set());
+    setSelectedResources(new Set());
+    onClose();
+  };
+
   const handleToggleSelect = (resourceId: string) => {
     const newSelected = new Set(selectedResources);
     if (newSelected.has(resourceId)) {
@@ -109,7 +115,7 @@ export function FileTreeDialog({
     });
 
     setSelectedResources(new Set());
-    onClose();
+    handleClose();
 
     if (kb?.id) {
       router.push(`/dashboard/${kb.id}`);
@@ -119,7 +125,7 @@ export function FileTreeDialog({
   const selectedCount = selectedResources.size;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="w-full max-w-5xl sm:max-w-7xl">
         <DialogHeader className="mb-0">
           <DialogTitle>Integrations</DialogTitle>
@@ -217,7 +223,7 @@ export function FileTreeDialog({
                   : "Select files to import"}
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={onClose}>
+                <Button variant="outline" onClick={handleClose}>
                   Cancel
                 </Button>
                 <Button
