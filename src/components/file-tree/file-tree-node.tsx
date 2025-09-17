@@ -82,7 +82,7 @@ export function FileTreeNode({
         {/* Expand/collapse button */}
         <button
           onClick={() => onToggleExpand(resource.resource_id)}
-          className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-200"
+          className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-200 disabled:hover:bg-transparent"
           disabled={resource.inode_type !== "directory"}
         >
           {getResourceExpandIcon()}

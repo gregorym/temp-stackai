@@ -92,7 +92,7 @@ export function KBFileTreeNode({
         {/* Expand/collapse button */}
         <button
           onClick={handleExpand}
-          className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-200"
+          className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-200 disabled:hover:bg-transparent"
           disabled={resource.inode_type !== "directory"}
         >
           {getResourceExpandIcon()}

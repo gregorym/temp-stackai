@@ -41,8 +41,8 @@ export default function KnowledgeBasePage() {
         </div>
 
         <div className="flex justify-between">
-          <span className="text-sm font-semibold">Name</span>
-          <span className="mr-16 text-sm font-semibold">Status</span>
+          <span className="ml-12 text-sm font-semibold">Name</span>
+          <span className="mr-14 text-sm font-semibold">Status</span>
         </div>
         <div className="space-y-1 rounded-md border">
           {isLoading && <FileTreeSkeleton level={0} />}
